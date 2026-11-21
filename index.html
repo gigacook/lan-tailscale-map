@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Wi‑Fi vs Tailscale — why LocalSend can't send</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --ink:#e8eaf0; --mute:#9aa3b2; --line:#2a2f3a;
+    --wifi:#3fb6ff; --ts:#a77bff; --bad:#ff5d6c; --good:#3ddc97; --nas:#f5b942;
+  }
+  @media (prefers-color-scheme: light){
+    :root{--bg:#f6f7fb;--panel:#fff;--ink:#1b1f2a;--mute:#5d6676;--line:#dde1ea;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{max-width:1200px;margin:0 auto;padding:32px 20px 8px}
+  h1{margin:0 0 6px;font-size:26px}
+  header p{margin:0;color:var(--mute)}
+  main{max-width:1200px;margin:0 auto;padding:16px 20px 40px;display:grid;gap:20px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h2{margin:0 0 4px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;color:#0b0d12}
+  .tag.bad{background:var(--bad)} .tag.good{background:var(--good)}
+  .card > p{margin:0 0 10px;color:var(--mute);font-size:14px}
+  svg{width:100%;height:auto;display:block}
+  svg text{fill:var(--ink);font:13px system-ui,-apple-system,Segoe UI,sans-serif}
+  svg .small{font-size:11px;fill:var(--mute)}
+  svg .box{fill:var(--bg);stroke:var(--line);stroke-width:1.5}
+  svg .zone-wifi{fill:none;stroke:var(--wifi);stroke-width:1.5;stroke-dasharray:6 5}
+  svg .zone-ts{fill:none;stroke:var(--ts);stroke-width:1.5;stroke-dasharray:6 5}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--mute);margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:22px;height:4px;border-radius:2px;display:inline-block}
+  ol{margin:6px 0 0;padding-left:22px} li{margin:6px 0}
+  code{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:14px}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+  th{color:var(--mute);font-weight:600}
+  .note{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Why the HP can receive but can't send in LocalSend</h1>
+  <p>Both laptops are on the same home Wi‑Fi (<code>192.168.1.0/24</code>), but Tailscale on the HP
+  takes over traffic meant for that Wi‑Fi range and sends it into the tunnel instead.</p>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- BEFORE -->
+    <section class="card">
+      <h2>Now <span class="tag bad">broken</span></h2>
+      <p>The HP accepts a Tailscale <b>subnet route</b> for <code>192.168.1.0/24</code>, probably advertised by the NAS.
+         So "send to the Mac at 192.168.1.111" goes into the tunnel and never reaches the Mac.</p>
+      <svg viewBox="0 0 560 380" role="img" aria-label="Broken: HP sends Wi‑Fi traffic into Tailscale tunnel">
+        <defs>
+          <marker id="aBad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--bad)"/></marker>
+          <marker id="aWifi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--wifi)"/></marker>
+        </defs>
+        <!-- zones -->
+        <rect class="zone-wifi" x="10" y="10" width="540" height="200" rx="14"/>
+        <text x="24" y="32" style="fill:var(--wifi);font-weight:600">Home Wi‑Fi · 192.168.1.0/24</text>
+        <rect class="zone-ts" x="10" y="230" width="540" height="140" rx="14"/>
+        <text x="24" y="252" style="fill:var(--ts);font-weight:600">Tailscale tunnel · 100.x.x.x</text>
+
+        <!-- router -->
+        <rect class="box" x="220" y="46" width="120" height="50" rx="10"/>
+        <text x="280" y="68" text-anchor="middle">📶 Router</text>
+        <text x="280" y="85" text-anchor="middle" class="small">192.168.1.1</text>
+
+        <!-- mac -->
+        <rect class="box" x="400" y="120" width="140" height="60" rx="10"/>
+        <text x="470" y="145" text-anchor="middle">💻 Mac (you)</text>
+        <text x="470" y="163" text-anchor="middle" class="small">192.168.1.111</text>
+
+        <!-- hp -->
+        <rect class="box" x="20" y="120" width="150" height="60" rx="10"/>
+        <text x="95" y="145" text-anchor="middle">🖥️ HP 840 G6 (dad)</text>
+        <text x="95" y="163" text-anchor="middle" class="small">192.168.1.x</text>
+
+        <!-- nas -->
+        <rect class="box" x="200" y="290" width="170" height="60" rx="10" style="stroke:var(--nas)"/>
+        <text x="285" y="314" text-anchor="middle">🗄️ NAS (subnet router)</text>
+        <text x="285" y="332" text-anchor="middle" class="small">advertises 192.168.1.0/24</text>
+
+        <!-- mac -> hp works (receive) -->
+        <path d="M400,140 C300,110 260,110 172,138" fill="none" stroke="var(--wifi)" stroke-width="2.5" marker-end="url(#aWifi)"/>
+        <text x="286" y="122" text-anchor="middle" class="small" style="fill:var(--wifi)">Mac → HP ✓ (receive works)</text>
+
+        <!-- hp -> tunnel -> nas (send fails) -->
+        <path d="M95,182 C95,260 140,320 198,320" fill="none" stroke="var(--bad)" stroke-width="2.5" marker-end="url(#aBad)"/>
+        <text x="40" y="275" class="small" style="fill:var(--bad)">HP → "192.168.1.111"</text>
+        <text x="40" y="290" class="small" style="fill:var(--bad)">routed into tunnel ✗</text>
+
+        <!-- dead end -->
+        <path d="M372,320 C440,320 470,260 470,184" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="5 5"/>
+        <text x="470" y="230" text-anchor="middle" style="fill:var(--bad);font-size:22px">✗</text>
+        <text x="455" y="345" text-anchor="middle" class="small" style="fill:var(--bad)">NAS's 192.168.1.x is a different</text>
+        <text x="455" y="360" text-anchor="middle" class="small" style="fill:var(--bad)">network, so the Mac never gets it</text>
+      </svg>
+    </section>
+
+    <!-- AFTER -->
+    <section class="card">
+      <h2>After fix <span class="tag good">working</span></h2>
+      <p>With "Use Tailscale subnets" <b>off</b>, Wi‑Fi addresses stay on Wi‑Fi. Tailscale still works for its own
+         <code>100.x</code> addresses and MagicDNS names.</p>
+      <svg viewBox="0 0 560 380" role="img" aria-label="Fixed: HP sends directly over Wi‑Fi">
+        <defs>
+          <marker id="aGood" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--good)"/></marker>
+          <marker id="aTs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--ts)"/></marker>
+        </defs>
+        <rect class="zone-wifi" x="10" y="10" width="540" height="200" rx="14"/>
+        <text x="24" y="32" style="fill:var(--wifi);font-weight:600">Home Wi‑Fi · 192.168.1.0/24</text>
+        <rect class="zone-ts" x="10" y="230" width="540" height="140" rx="14"/>
+        <text x="24" y="252" style="fill:var(--ts);font-weight:600">Tailscale tunnel · 100.x.x.x only</text>
+
+        <rect class="box" x="220" y="46" width="120" height="50" rx="10"/>
+        <text x="280" y="68" text-anchor="middle">📶 Router</text>
+        <text x="280" y="85" text-anchor="middle" class="small">192.168.1.1</text>
+
+        <rect class="box" x="400" y="120" width="140" height="60" rx="10"/>
+        <text x="470" y="145" text-anchor="middle">💻 Mac (you)</text>
+        <text x="470" y="163" text-anchor="middle" class="small">192.168.1.111</text>
+
+        <rect class="box" x="20" y="120" width="150" height="60" rx="10"/>
+        <text x="95" y="145" text-anchor="middle">🖥️ HP 840 G6 (dad)</text>
+        <text x="95" y="163" text-anchor="middle" class="small">192.168.1.x</text>
+
+        <rect class="box" x="200" y="290" width="170" height="60" rx="10" style="stroke:var(--nas)"/>
+        <text x="285" y="314" text-anchor="middle">🗄️ NAS</text>
+        <text x="285" y="332" text-anchor="middle" class="small">reach via 100.x / name</text>
+
+        <!-- both directions on wifi -->
+        <path d="M172,142 L398,142" fill="none" stroke="var(--good)" stroke-width="2.5" marker-end="url(#aGood)"/>
+        <path d="M398,160 L172,160" fill="none" stroke="var(--good)" stroke-width="2.5" marker-end="url(#aGood)"/>
+        <text x="285" y="134" text-anchor="middle" class="small" style="fill:var(--good)">HP → Mac ✓ send</text>
+        <text x="285" y="178" text-anchor="middle" class="small" style="fill:var(--good)">Mac → HP ✓ receive</text>
+
+        <!-- router reachable -->
+        <path d="M120,118 L225,96" fill="none" stroke="var(--good)" stroke-width="2" marker-end="url(#aGood)"/>
+        <text x="130" y="96" class="small" style="fill:var(--good)">router ✓</text>
+
+        <!-- tailscale still used for nas -->
+        <path d="M95,182 C95,260 140,320 198,320" fill="none" stroke="var(--ts)" stroke-width="2.5" marker-end="url(#aTs)"/>
+        <text x="40" y="282" class="small" style="fill:var(--ts)">Tailscale still on</text>
+        <text x="40" y="297" class="small" style="fill:var(--ts)">for NAS / remote ✓</text>
+      </svg>
+    </section>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--wifi)"></i>Wi‑Fi traffic</span>
+    <span><i class="sw" style="background:var(--ts)"></i>Tailscale tunnel</span>
+    <span><i class="sw" style="background:var(--bad)"></i>Broken path</span>
+    <span><i class="sw" style="background:var(--good)"></i>Working path</span>
+    <span><i class="sw" style="background:var(--nas)"></i>Subnet router</span>
+  </div>
+
+  <section class="card">
+    <h2>Fix on the HP (2 minutes)</h2>
+    <ol>
+      <li><b>Check where the traffic goes.</b> Open PowerShell and run:
+<pre>Find-NetRoute -RemoteIPAddress 192.168.1.111 | Select InterfaceAlias
+Test-NetConnection 192.168.1.111 -Port 53317</pre>
+        If it says <code>Tailscale</code>, this map is the problem. If it says <code>Wi-Fi</code>, skip to step 4.</li>
+      <li><b>Turn off the subnet route:</b> click the Tailscale icon in the system tray → <b>Settings</b> →
+        uncheck <b>Use Tailscale subnets</b>.</li>
+      <li><b>If he needs the NAS subnet over Tailscale</b>, change the NAS so it doesn't advertise <code>192.168.1.0/24</code>
+        (the same range as the home Wi‑Fi). Give the NAS's own LAN a different range (e.g. <code>192.168.50.0/24</code>), or reach the NAS by its
+        Tailscale name or <code>100.x</code> address instead.</li>
+      <li><b>Windows firewall:</b> Settings → Network &amp; internet → Wi‑Fi → his network → <b>Private</b>.
+        Then Windows Security → Firewall → <i>Allow an app</i> → tick <b>LocalSend</b> for Private.</li>
+      <li><b>Restart LocalSend on both laptops</b>, then send by IP: Send tab → address icon → <code>192.168.1.111</code>.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Cheat sheet</h2>
+    <table>
+      <tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr>
+      <tr><td>Can't open router page</td><td>Tailscale subnet route or exit node captures <code>192.168.1.x</code></td><td>Turn off "Use Tailscale subnets", or set exit node → <i>Allow local network access</i></td></tr>
+      <tr><td>LocalSend "invalid IPv6 address"</td><td>LocalSend picked the Tailscale adapter</td><td>Restart LocalSend after the fix; send by IPv4</td></tr>
+      <tr><td>Can receive, can't send</td><td>HP's outgoing traffic to the Mac goes into the tunnel</td><td>Steps 1–2 above</td></tr>
+      <tr><td>Works only with Tailscale off</td><td>Same thing</td><td>Same fix, so he can keep Tailscale on</td></tr>
+    </table>
+    <p class="note">The "probably the NAS" part is a best guess, based on a shared NAS being the only likely subnet router. Step 1 confirms it.</p>
+  </section>
+</main>
+</body>
+</html>
